@@ -15,6 +15,8 @@ Leadership needs a clear, data-backed view of customer behavior and shopping hab
 
 800,000 transactions, 220,000 customers, January-December 2025. Covers 6 product categories, 10 countries, and 6 acquisition channels. No cost, spend, or demographic data.
 
+The raw dataset itself is confidential and is not included in this repository.
+
 ## 🔍 Analytical Approach
 
 Cohort retention analysis in SQL, segmented by acquisition month, channel, country, and product category. Findings built into two Power BI dashboards (Executive and Marketing/Growth) and an interactive country map.
