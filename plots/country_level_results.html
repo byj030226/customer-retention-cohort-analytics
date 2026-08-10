@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revenue by country — interactive map</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #ffffff;
+    color: #0b0b0b;
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  p.subtitle {
+    font-size: 14px;
+    color: #52514e;
+    margin-top: 0;
+    margin-bottom: 24px;
+  }
+  #map-wrap {
+    position: relative;
+    width: 100%;
+  }
+  #tooltip {
+    position: absolute;
+    pointer-events: none;
+    display: none;
+    background: #ffffff;
+    border: 0.5px solid #e1e0d9;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #0b0b0b;
+    white-space: nowrap;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  #legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #52514e;
+  }
+  #panel {
+    margin-top: 16px;
+    background: #f5f4f0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+  }
+  #panel .hint {
+    font-size: 13px;
+    color: #52514e;
+    margin: 0;
+  }
+  #panel .country-name {
+    font-size: 15px;
+    font-weight: 500;
+  }
+  #panel .revenue {
+    font-size: 20px;
+    font-weight: 500;
+  }
+  #panel .stat-label {
+    font-size: 12px;
+    color: #52514e;
+    margin: 0 0 2px;
+  }
+  #panel .stat-value {
+    font-size: 14px;
+    margin: 0;
+  }
+  #panel .top-product {
+    font-size: 12px;
+    color: #52514e;
+    margin: 10px 0 0;
+  }
+  footer {
+    margin-top: 24px;
+    font-size: 12px;
+    color: #898781;
+  }
+</style>
+</head>
+<body>
+
+<h1>Revenue by country</h1>
+<p class="subtitle">Hover for a quick value. Click a country for full detail. Color scale is set to $21.55M–$22.05M to reveal the real spread, not from zero.</p>
+
+<div id="map-wrap">
+  <div id="map" style="width:100%;"></div>
+  <div id="tooltip"></div>
+</div>
+<div id="legend"></div>
+
+<div id="panel">
+  <p class="hint">Click a country to see full detail</p>
+</div>
+
+<footer>Customer behavior and shopping habits analysis, 2025 transaction data. Built with D3.js.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+const channelColors = {Google:'#2a78d6', Organic:'#eb6834', Facebook:'#e34948', Email:'#eda100', Ads:'#1baf7a', Referral:'#4a3aa7'};
+
+const values = {
+  'United States of America': {code:'US', revenue:21.97, orders:80274, customers:66480, aov:273.72, product:'Phone',
+    channels:[['Google',30.8],['Organic',21.4],['Facebook',17.7],['Email',12.8],['Ads',12.0],['Referral',5.3]]},
+  'United Kingdom': {code:'UK', revenue:21.62, orders:79834, customers:66026, aov:270.79, product:'Blender',
+    channels:[['Google',30.9],['Organic',21.4],['Facebook',17.8],['Email',13.0],['Ads',11.9],['Referral',5.0]]},
+  'Brazil': {code:'BR', revenue:21.89, orders:79983, customers:66454, aov:273.71, product:'Laptop',
+    channels:[['Google',30.6],['Organic',21.2],['Facebook',18.1],['Email',13.1],['Ads',12.1],['Referral',4.8]]},
+  'Canada': {code:'CA', revenue:21.87, orders:80078, customers:66519, aov:273.06, product:'Shoes',
+    channels:[['Google',30.8],['Organic',21.7],['Facebook',17.9],['Email',13.0],['Ads',11.7],['Referral',4.8]]},
+  'France': {code:'FR', revenue:21.85, orders:79663, customers:66277, aov:274.26, product:'Phone',
+    channels:[['Google',30.9],['Organic',21.1],['Facebook',18.2],['Email',12.5],['Ads',12.5],['Referral',4.9]]},
+  'Germany': {code:'DE', revenue:21.84, orders:79968, customers:66119, aov:273.13, product:'Book',
+    channels:[['Google',30.9],['Organic',21.4],['Facebook',17.8],['Email',12.8],['Ads',12.0],['Referral',5.1]]},
+  'India': {code:'IN', revenue:21.65, orders:80041, customers:66267, aov:270.54, product:'Book',
+    channels:[['Google',31.4],['Organic',21.0],['Facebook',17.8],['Email',13.0],['Ads',11.9],['Referral',4.9]]},
+  'Japan': {code:'JP', revenue:21.97, orders:80171, customers:66373, aov:274.10, product:'Laptop',
+    channels:[['Google',30.8],['Organic',21.6],['Facebook',17.5],['Email',13.0],['Ads',12.2],['Referral',4.8]]},
+  'Mexico': {code:'MX', revenue:21.81, orders:80146, customers:66430, aov:272.12, product:'Coffee Maker',
+    channels:[['Google',30.9],['Organic',21.4],['Facebook',17.7],['Email',13.0],['Ads',11.9],['Referral',5.2]]},
+  'Australia': {code:'AU', revenue:21.71, orders:79842, customers:66186, aov:271.89, product:'Headphones',
+    channels:[['Google',31.0],['Organic',21.9],['Facebook',17.5],['Email',13.0],['Ads',11.7],['Referral',4.9]]}
+};
+
+const color = d3.scaleSequential(d3.interpolateBlues).domain([21.55, 22.05]);
+const neutral = '#e1e0d9';
+const accent = '#185fa5';
+const mapDiv = document.getElementById('map');
+const tooltip = document.getElementById('tooltip');
+const panel = document.getElementById('panel');
+const svg = d3.select('#map').append('svg').attr('viewBox', '0 0 900 480').attr('width', '100%').style('display','block');
+const projection = d3.geoNaturalEarth1().scale(150).translate([450, 240]);
+const path = d3.geoPath(projection);
+
+function renderPanel(name, d) {
+  const channelRows = d.channels.map(([ch, pct]) =>
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">' +
+      '<span style="width:62px;font-size:11px;color:#52514e;">' + ch + '</span>' +
+      '<div style="flex:1;background:#f0efec;border-radius:4px;height:12px;">' +
+        '<div style="width:' + (pct / 35 * 100).toFixed(0) + '%;height:12px;border-radius:4px;background:' + channelColors[ch] + ';"></div>' +
+      '</div>' +
+      '<span style="width:36px;font-size:11px;text-align:right;color:#52514e;">' + pct.toFixed(1) + '%</span>' +
+    '</div>'
+  ).join('');
+
+  panel.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">' +
+      '<span class="country-name">' + name + '</span>' +
+      '<span class="revenue">$' + d.revenue.toFixed(2) + 'M</span>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">' +
+      '<div><p class="stat-label">Orders</p><p class="stat-value">' + d.orders.toLocaleString() + '</p></div>' +
+      '<div><p class="stat-label">Customers</p><p class="stat-value">' + d.customers.toLocaleString() + '</p></div>' +
+      '<div><p class="stat-label">Avg order value</p><p class="stat-value">$' + d.aov.toFixed(2) + '</p></div>' +
+    '</div>' +
+    '<p class="top-product">Top product: ' + d.product + '</p>' +
+    '<p class="stat-label" style="margin-top:14px;">Traffic mix for this country</p>' +
+    channelRows;
+}
+
+let selected = null;
+
+d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+  const features = topojson.feature(world, world.objects.countries).features;
+  const paths = svg.selectAll('path').data(features).join('path')
+    .attr('d', path)
+    .attr('stroke', '#ffffff')
+    .attr('stroke-width', 0.5)
+    .attr('fill', d => {
+      const v = values[d.properties.name];
+      return v !== undefined ? color(v.revenue) : neutral;
+    })
+    .style('cursor', d => values[d.properties.name] ? 'pointer' : 'default');
+
+  paths.on('mousemove', function(event, d) {
+    const v = values[d.properties.name];
+    if (!v) { tooltip.style.display = 'none'; return; }
+    const rect = mapDiv.getBoundingClientRect();
+    tooltip.style.left = (event.clientX - rect.left + 12) + 'px';
+    tooltip.style.top = (event.clientY - rect.top - 10) + 'px';
+    tooltip.style.display = 'block';
+    tooltip.textContent = d.properties.name + ': $' + v.revenue.toFixed(2) + 'M';
+  });
+  paths.on('mouseleave', function() { tooltip.style.display = 'none'; });
+
+  paths.on('click', function(event, d) {
+    const v = values[d.properties.name];
+    if (!v) return;
+    if (selected) selected.attr('stroke', '#ffffff').attr('stroke-width', 0.5);
+    const sel = d3.select(this);
+    sel.attr('stroke', accent).attr('stroke-width', 2);
+    selected = sel;
+    renderPanel(d.properties.name, v);
+  });
+});
+
+const legend = document.getElementById('legend');
+legend.innerHTML = '<span>$21.6M</span>' +
+  '<div style="width:120px;height:10px;border-radius:4px;background:linear-gradient(to right,' + color(21.55) + ',' + color(22.05) + ');"></div>' +
+  '<span>$22.0M</span>';
+</script>
+
+</body>
+</html>
